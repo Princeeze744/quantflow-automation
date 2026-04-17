@@ -32,6 +32,20 @@ export default async function settingsRoutes(app: FastifyInstance) {
     return { user, riskSettings, rules, tags }
   })
 
+  // Get profile
+  app.get('/profile', async (request) => {
+    const { userId } = (request as any).user
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true, email: true, displayName: true,
+        broker: true, accountCurrency: true,
+        startingBalance: true, timezone: true,
+      },
+    })
+    return { user }
+  })
+
   // Update profile
   app.put('/profile', async (request) => {
     const { userId } = (request as any).user
@@ -91,3 +105,4 @@ export default async function settingsRoutes(app: FastifyInstance) {
     return { success: true }
   })
 }
+
