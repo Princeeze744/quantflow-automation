@@ -1,12 +1,10 @@
 import Fastify from 'fastify'
+import cors from '@fastify/cors'
+import rateLimit from '@fastify/rate-limit'
 import fastifyStatic from '@fastify/static'
 import path from 'path'
 import { fileURLToPath } from 'url'
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
-import cors from '@fastify/cors'
-import rateLimit from '@fastify/rate-limit'
+import fs from 'fs'
 import authRoutes from './routes/auth.js'
 import tradeRoutes from './routes/trades.js'
 import analyticsRoutes from './routes/analytics.js'
@@ -15,44 +13,35 @@ import importRoutes from './routes/import.js'
 import playbookRoutes from './routes/playbooks.js'
 import notebookRoutes from './routes/notebook.js'
 
-const app = Fastify({ logger: true, bodyLimit: 5 * 1024 * 1024 }) // 5MB body limit
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+const app = Fastify({ logger: true, bodyLimit: 5 * 1024 * 1024 })
 
 await app.register(cors, {
   origin: process.env.NODE_ENV === 'production'
-    ? [process.env.FRONTEND_URL || 'https://quantflow.vercel.app']
+    ? true
     : 'http://localhost:3000',
   credentials: true,
 })
 
-// Global rate limit — 100 requests per minute per IP
 await app.register(rateLimit, {
   max: 100,
   timeWindow: '1 minute',
-  errorResponseBuilder: () => ({
-    error: 'Too many requests. Please slow down.',
-    code: 429,
-  }),
 })
 
-// Security headers middleware
 app.addHook('onSend', async (_req, reply) => {
   reply.header('X-Content-Type-Options', 'nosniff')
   reply.header('X-Frame-Options', 'DENY')
   reply.header('X-XSS-Protection', '1; mode=block')
   reply.header('Referrer-Policy', 'strict-origin-when-cross-origin')
   reply.header('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
-  reply.header('Permissions-Policy', 'geolocation=(), microphone=(), camera=()')
 })
 
-// Stricter rate limit on auth endpoints — 5 attempts per 15 minutes
 await app.register(async (scope) => {
   await scope.register(rateLimit, {
     max: 5,
     timeWindow: '15 minutes',
-    errorResponseBuilder: () => ({
-      error: 'Too many authentication attempts. Please wait 15 minutes.',
-      code: 429,
-    }),
   })
   await scope.register(authRoutes)
 }, { prefix: '/api/auth' })
@@ -64,24 +53,25 @@ await app.register(importRoutes, { prefix: '/api/import' })
 await app.register(playbookRoutes, { prefix: '/api/playbooks' })
 await app.register(notebookRoutes, { prefix: '/api/notebook' })
 
-// Serve frontend static files
-await app.register(fastifyStatic, {
-  root: path.join(__dirname, '..', 'public'),
-  prefix: '/',
-  decorateReply: false,
-})
-
-// Catch-all: serve index.html for client-side routing
-app.setNotFoundHandler(async (request, reply) => {
-  if (request.url.startsWith('/api')) {
-    return reply.status(404).send({ error: 'Route not found' })
-  }
-  return reply.sendFile('index.html')
-})
-
 app.get('/api/health', async () => {
   return { status: 'ok', name: 'Quantflow API', version: '1.1.0', security: 'hardened' }
 })
+
+// Serve frontend in production
+const publicDir = path.join(__dirname, '..', 'public')
+if (fs.existsSync(publicDir)) {
+  await app.register(fastifyStatic, {
+    root: publicDir,
+    prefix: '/',
+  })
+
+  app.setNotFoundHandler(async (request, reply) => {
+    if (request.url.startsWith('/api')) {
+      return reply.status(404).send({ error: 'API route not found' })
+    }
+    return reply.sendFile('index.html')
+  })
+}
 
 const start = async () => {
   try {
@@ -97,5 +87,3 @@ const start = async () => {
 }
 
 start()
-
-
