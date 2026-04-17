@@ -1,0 +1,12 @@
+{
+  "name": "quantflow-automation",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "cd server && npm install && npx prisma generate && npx tsc && cd ../client && npm install && npm run build && mkdir -p ../server/public && cp -r dist/* ../server/public/",
+    "start": "cd server && npx prisma db push --accept-data-loss && node dist/index.js"
+  }
+}
