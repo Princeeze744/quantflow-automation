@@ -1,4 +1,10 @@
 import Fastify from 'fastify'
+import fastifyStatic from '@fastify/static'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
 import cors from '@fastify/cors'
 import rateLimit from '@fastify/rate-limit'
 import authRoutes from './routes/auth.js'
@@ -58,6 +64,21 @@ await app.register(importRoutes, { prefix: '/api/import' })
 await app.register(playbookRoutes, { prefix: '/api/playbooks' })
 await app.register(notebookRoutes, { prefix: '/api/notebook' })
 
+// Serve frontend static files
+await app.register(fastifyStatic, {
+  root: path.join(__dirname, '..', 'public'),
+  prefix: '/',
+  decorateReply: false,
+})
+
+// Catch-all: serve index.html for client-side routing
+app.setNotFoundHandler(async (request, reply) => {
+  if (request.url.startsWith('/api')) {
+    return reply.status(404).send({ error: 'Route not found' })
+  }
+  return reply.sendFile('index.html')
+})
+
 app.get('/api/health', async () => {
   return { status: 'ok', name: 'Quantflow API', version: '1.1.0', security: 'hardened' }
 })
@@ -76,3 +97,5 @@ const start = async () => {
 }
 
 start()
+
+
