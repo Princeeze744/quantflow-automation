@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = "file:./quantflow.db"
 }
 
@@ -194,5 +194,7 @@ model Notebook {
 
   user            User     @relation(fields: [userId], references: [id])
 }
+
+
 
 
