@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./quantflow.db"
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  password        String
+  displayName     String   @default("Trader")
+  broker          String   @default("OANDA")
+  accountCurrency String   @default("USD")
+  startingBalance Float    @default(10000)
+  timezone        String   @default("UTC+0")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  trades          Trade[]
+  playbooks       Playbook[]
+  notebooks       Notebook[]
+  tags            Tag[]
+  rules           TradingRule[]
+  riskSettings    RiskSettings?
+  journalEntries  JournalEntry[]
+}
+
+model Trade {
+  id              String   @id @default(uuid())
+  userId          String
+  pair            String
+  direction       String   // LONG or SHORT
+  entryPrice      Float
+  exitPrice       Float?
+  stopLoss        Float?
+  takeProfit      Float?
+  lotSize         Float
+  commission      Float    @default(0)
+  swap            Float    @default(0)
+  spreadAtEntry   Float    @default(0)
+  pnlDollars      Float?
+  pnlPips         Float?
+  rrPlanned       Float?
+  rrActual        Float?
+  riskPercent     Float?
+  holdDurationMin Int?
+  session         String?  // TOKYO, LONDON, NEWYORK, SYDNEY, OVERLAP
+  entryTime       DateTime
+  exitTime        DateTime?
+  status          String   @default("OPEN") // OPEN, CLOSED, CANCELLED
+  source          String   @default("MANUAL") // MANUAL, MT4, MT5, CTRADER, OANDA_API
+  screenshotUrl   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+  psychology      TradePsychology?
+  tradeTags       TradeTag[]
+
+  @@index([userId, entryTime])
+  @@index([userId, pair])
+  @@index([userId, status])
+}
+
+model TradePsychology {
+  id              String   @id @default(uuid())
+  tradeId         String   @unique
+  preMood         Int      @default(3) // 1-5
+  preConfidence   Int      @default(3) // 1-5
+  preEnergy       Int      @default(3) // 1-5
+  preFocus        Int      @default(3) // 1-5
+  postEmotion     String?  // CALM, EXCITED, FRUSTRATED, FEARFUL, GREEDY, NEUTRAL, RELIEVED
+  revengeFlag     Boolean  @default(false)
+  fomoFlag        Boolean  @default(false)
+  rulesFollowed   String?  // JSON string of rule compliance
+  reflectionText  String?
+  lessonLearned   String?
+  grade           String?  // A, B, C, D, F
+
+  trade           Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  category  String   // SETUP, CONFLUENCE, CONDITION, CATALYST, CUSTOM
+  color     String   @default("#7C5CFC")
+  icon      String   @default("tag")
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+  tradeTags TradeTag[]
+
+  @@unique([userId, name])
+}
+
+model TradeTag {
+  id        String   @id @default(uuid())
+  tradeId   String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  trade     Trade    @relation(fields: [tradeId], references: [id], onDelete: Cascade)
+  tag       Tag      @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tradeId, tagId])
+}
+
+model TradingRule {
+  id        String   @id @default(uuid())
+  userId    String
+  text      String
+  category  String   @default("PRE_TRADE") // PRE_TRADE, POST_TRADE, GENERAL
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model RiskSettings {
+  id                 String @id @default(uuid())
+  userId             String @unique
+  maxRiskPerTrade    Float  @default(1.0)
+  dailyLossLimit     Float  @default(300)
+  weeklyLossLimit    Float  @default(800)
+  monthlyLossLimit   Float  @default(2000)
+  maxDrawdownPercent Float  @default(10)
+  maxOpenTrades      Int    @default(3)
+  maxTradesPerDay    Int    @default(5)
+  cooldownMinutes    Int    @default(0)
+  pauseOnDailyLimit  Boolean @default(true)
+  flagRevengeTrades  Boolean @default(true)
+  reduceOnDrawdown   Boolean @default(true)
+
+  user               User   @relation(fields: [userId], references: [id])
+}
+
+model JournalEntry {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String?
+  content   String
+  mood      Int      @default(3)
+  type      String   @default("DAILY") // DAILY, WEEKLY, MONTHLY, NOTE
+  date      DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Playbook {
+  id              String   @id @default(uuid())
+  userId          String
+  name            String
+  description     String?
+  setupType       String
+  timeframe       String?
+  entryRules      String
+  exitRules       String
+  confluences     String
+  riskPerTrade    Float    @default(1.0)
+  minRR           Float    @default(1.5)
+  idealSessions   String?
+  idealPairs      String?
+  notes           String?
+  isActive        Boolean  @default(true)
+  totalTrades     Int      @default(0)
+  winRate         Float    @default(0)
+  avgRR           Float    @default(0)
+  totalPnl        Float    @default(0)
+  color           String   @default("#7C5CFC")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+model Notebook {
+  id              String   @id @default(uuid())
+  userId          String
+  title           String
+  content         String
+  type            String   @default("DAILY_PLAN")
+  mood            Int      @default(3)
+  tags            String?
+  date            DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  user            User     @relation(fields: [userId], references: [id])
+}
+
+
