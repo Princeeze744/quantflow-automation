@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "file:./quantflow.db"
+  url      = env("DATABASE_URL")
 }
 
 model User {
@@ -194,6 +194,7 @@ model Notebook {
 
   user            User     @relation(fields: [userId], references: [id])
 }
+
 
 
 
