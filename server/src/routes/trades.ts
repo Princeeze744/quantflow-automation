@@ -34,7 +34,7 @@ export default async function tradeRoutes(app: FastifyInstance) {
     return { trade }
   })
 
-  app.post('/', async (request) => {
+  app.post('/', async (request, reply) => {
     const { userId } = (request as any).user
     const body = request.body as any
 
@@ -214,5 +214,6 @@ export default async function tradeRoutes(app: FastifyInstance) {
     return { tags }
   })
 }
+
 
 

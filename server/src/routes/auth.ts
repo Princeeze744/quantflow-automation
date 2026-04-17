@@ -138,8 +138,7 @@ export default async function authRoutes(app: FastifyInstance) {
     await prisma.user.update({
       where: { id: user.id },
       data: {
-        resetToken,
-        resetTokenExpiry: resetExpiry,
+        
       },
     })
 
@@ -168,8 +167,7 @@ export default async function authRoutes(app: FastifyInstance) {
 
     const user = await prisma.user.findFirst({
       where: {
-        resetToken: token,
-        resetTokenExpiry: { gt: new Date() },
+        
       },
     })
 
@@ -183,8 +181,7 @@ export default async function authRoutes(app: FastifyInstance) {
       where: { id: user.id },
       data: {
         password: passwordHash,
-        resetToken: null,
-        resetTokenExpiry: null,
+        
       },
     })
 
@@ -196,11 +193,12 @@ export default async function authRoutes(app: FastifyInstance) {
     const { userId } = (request as any).user
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, displayName: true, timezone: true, defaultPair: true, createdAt: true },
+      select: { id: true, email: true, displayName: true, timezone: true, createdAt: true },
     })
     return { user }
   })
 }
+
 
 
 
